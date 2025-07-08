@@ -1,0 +1,12 @@
+[project]
+name = "mcp-practice"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain>=0.3.26",
+    "langchain-groq>=0.3.5",
+    "langchain-mcp-adapters>=0.1.8",
+    "langgraph>=0.5.1",
+]
