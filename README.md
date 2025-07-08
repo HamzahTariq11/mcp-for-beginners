@@ -1,120 +1,158 @@
-# 🚀 MCP Tools Setup Guide for Beginners
+# 🚀 MCP Practice Project
 
-This guide outlines the steps to set up and run a project using MCP tools, either with Docker or a local server.
+This repository demonstrates how to use MCP tools with both **LangGraph** and **Crew AI**. 
 
 ---
 
 ## 📋 Prerequisites
 
 - **Python** 3.12 or higher  
-- **Docker** (if using the Docker setup)  
+- **Docker** (for Docker-based MCP server)  
 - **Git** (optional, for cloning the repository)  
 
 ---
 
 ## 🛠️ Setup Instructions
 
-### 1️⃣ Install `uv`
+### 1. Install `uv`
 
-> Follow the instructions at  
-> [uv Installation Guide](https://docs.astral.sh/uv/getting-started/installation/)
+See [uv Installation Guide](https://docs.astral.sh/uv/getting-started/installation/).
 
----
+### 2. Initialize the Project
 
-### 2️⃣ Initialize the Project
-
-**Create a new directory:**
-````bash
+```bash
 mkdir my-mcp-project
 cd my-mcp-project
-````
-
-**Initialize a new uv project:**
-````bash
 uv init
-````
-
-**Create a virtual environment:**
-````bash
 uv venv
-````
-
-**Sync the project dependencies:**
-````bash
 uv sync
-````
+```
 
----
+### 3. Add Packages
 
-### 3️⃣ Add Packages
-
-To add additional Python packages to your project, use the following command:
-````bash
+```bash
 uv add <package-name>
-````
-
-For example:
-````bash
+# Example:
 uv add langchain
-````
+```
 
 ---
 
-## 🚀 Running MCP Tools
+# 🧩 LangGraph Example
 
-This repository supports running MCP tools either via Docker or a local server. You can choose one method or use both, depending on your needs.
+This section covers the original example using LangGraph and MCP tools.
 
-### Option 1: Using Docker for MCP Server
+## Running MCP Tools
 
-To run the MCP server using Docker, follow these steps:
+You can run MCP tools via Docker or a local server.
 
-**Pull the Playwright Docker image:**
-````bash
+### Option 1: Docker
+
+```bash
 docker pull mcp/playwright
-````
-
-**Run the Docker container:**
-````bash
 docker run -i --rm mcp/playwright
-````
-
-> **Note:** The exact command may vary depending on the image. Check the documentation for available images at [Docker Hub - MCP Images](https://hub.docker.com/search?categories=Machine+learning+%26+AI).
+```
 
 Keep the terminal running to maintain the container.
 
----
+### Option 2: Local Server
 
-### Option 2: Using a Local Server
+Add tools to the server as needed.  
+Run:
 
-To run the MCP server locally, follow these steps:
-
-**Add tools to the server** based on your use case. Currently, the server includes two tools that return a string.
-
-**Run the server:**
-````bash
+```bash
 python user.py
-````
-
-Keep the terminal running to maintain the server.
+```
 
 ---
 
-## 🎭 Running the Agent
+## Running the Agent
 
-Once the MCP server (Docker or local) is running, execute the main script to use your agent with MCP tools:
-````bash
+Once the MCP server (Docker or local) is running, execute:
+
+```bash
 python main.py
-````
+```
 
 ---
 
-## 📝 Notes
+## Notes
 
 - Ensure the server (Docker or local) is running before executing `main.py`.
-- If you encounter issues with Docker images, refer to the official documentation for troubleshooting.
-- To manage dependencies or remove unused packages, edit the `uv.toml` file and run:
-````bash
-uv sync
-````
+- To manage dependencies or remove unused packages, edit `uv.toml` and run `uv sync`.
 
+---
 
+# 🤖 Crew AI Examples
+
+This section demonstrates how to use Crew AI with MCP tools. All outputs (like PDFs) are saved in the `saved_pdfs` directory.
+
+---
+### Note: You can use groq models instead of azure openai, but there might be issues with rate limits on free tier.
+
+## 1. Single MCP Example
+
+**File:** `crew.py`
+
+**Run:**
+```bash
+python crew.py
+```
+
+**What it does:**  
+- Connects to MCP tools via Docker (or optionally HTTP).
+- Uses Crew AI to create an agent that:
+  - Navigates to www.google.com
+  - Fetches the page title
+  - Saves the page as `google.pdf` in the `saved_pdfs` directory
+
+**Key snippet:**
+```python
+server_params = StdioServerParameters(
+    command="docker",
+    args=[
+        "run",
+        "-i",
+        "--rm",
+        "-v", f"{host_pdf_dir}:/tmp/playwright-mcp-output", 
+        "mcp/playwright"
+    ]
+)
+```
+
+The argument "-v", f"{host_pdf_dir}:/tmp/playwright-mcp-output"  mounts the local host directory to the Docker container for sharing PDF output files. Remove it if you do not require to access the directory of the container.
+
+---
+
+## 2. Multiple MCPs Example
+
+**File:** `crew_multiple_tasks.py`
+
+**Run:**
+```bash
+python crew_multiple_tasks.py
+```
+
+**What it does:**  
+- Connects to both Docker-based and local MCP servers
+- Merges tools from both sources
+- Uses Crew AI to create an agent that:
+  - Navigates to www.google.com
+  - Fetches the page title
+  - Gets your name from a tool on mcp server running locally
+  - Puts the name in a text box
+  - Saves the page as `google.pdf` in the `saved_pdfs` directory
+
+**Key snippet:**
+```python
+with MCPServerAdapter(docker_params) as docker_tools, MCPServerAdapter(http_params) as http_tools:
+    all_tools = docker_tools + http_tools  # Merge tools
+    # ...
+```
+
+---
+
+**Note:**  
+- All output files (like PDFs) are saved in the `saved_pdfs` directory.
+- Make sure the required environment variables are set (see `.env.example` if available).
+- For Azure OpenAI, ensure your credentials are configured as shown in
