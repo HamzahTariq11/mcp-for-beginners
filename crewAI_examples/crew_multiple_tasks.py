@@ -10,7 +10,19 @@ load_dotenv()
 
 from pathlib import Path
 
+from contextlib import ExitStack
+
+def load_all_mcp_tools(server_params_list):
+    all_tools = []
+    stack = ExitStack()
+    adapters = [stack.enter_context(MCPServerAdapter(params)) for params in server_params_list]
+    for adapter in adapters:
+        all_tools.extend(adapter)
+    return all_tools, stack
+
+
 current_dir = os.getcwd()  # Get current working directory
+current_dir = os.path.join(current_dir,"crewAI_examples")  
 host_pdf_dir = Path(current_dir, "saved_pdfs").as_posix()
 
 
@@ -36,49 +48,41 @@ docker_params = StdioServerParameters(
 )
 #mcp runnning on local server
 
-http_params = {
+user = {
     "url":"http://localhost:8000/mcp",
     "transport":"streamable-http"
 }
 
+time= {
+    "url": "http://localhost:5000/mcp",
+    "transport": "streamable-http"
+}
+
 async def main():
-    """Fetches my name from the local server tool and navigates to google.com using mcp tools from docker"""
-
-    with MCPServerAdapter(docker_params) as docker_tools, MCPServerAdapter(http_params) as http_tools:
-
-        all_tools = docker_tools + http_tools  # Merge tools
-
+    server_params_list = [docker_params, user, time]
+    
+    all_tools, stack = load_all_mcp_tools(server_params_list)
+    with stack:
         print(f"Total tools loaded: {[tool.name for tool in all_tools]}")
 
-        llm = LLM(
-            model="azure/gpt-4o",
-            temperature=0.7
-        )
-        # Create agent with MCP tools
+        llm = LLM(model="azure/gpt-4o", temperature=0.7)
+
         agent = Agent(
             role="Agent",
             goal="Use browser tools to fetch content",
             backstory="An expert agent that can interact with web using MCP tools.",
-            tools=all_tools,  # Pass the tools from MCPServerAdapter
+            tools=all_tools,
             llm=llm,
             verbose=True,
         )
 
-        # Define task
         task = Task(
-            description="Navigate to www.google.com and fetch the title of the page. Get my name and birthyear (my age is 20) from the tools and put them in the text box and then save the page as google.pdf'.",
+            description="Navigate to www.bing.com and fetch the title. Use the tools to get name and birth year and also the current time. Fill them on the text box and hit enter and save it as google.pdf.",
             agent=agent,
-            expected_output="A string containing the title of the Google homepage, e.g., 'Google'. and filepath to the pdf file, e.g., 'google.pdf'.",
+            expected_output="Page title, the text that was input the search box and saved PDF path",
         )
 
-        # Create crew
-        crew = Crew(
-            agents=[agent],
-            tasks=[task],
-            verbose=True
-        )
-
-        # Run crew
+        crew = Crew(agents=[agent], tasks=[task], verbose=True)
         result = crew.kickoff()
         print(result)
 

@@ -1,7 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 from datetime import datetime
 
-mcp = FastMCP("User Name")
+mcp = FastMCP("User Name", port=5000)
 
 @mcp.tool()
 async def get_my_name() -> str:

@@ -44,5 +44,6 @@ async def main():
     #     {"messages": [{"role": "user", "content": "My age is 25. What is my birth year?"}]},
     # )
     print(response['messages'][-1].content)
+    
 
 asyncio.run(main())
