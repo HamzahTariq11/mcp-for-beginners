@@ -1,4 +1,4 @@
-# 🚀 MCP Practice Project
+# 🚀 MCP With Langgraph and CrewAI - A Beginners Guide with Examples
 
 This repository demonstrates how to use MCP tools with both **LangGraph** and **Crew AI**. 
 
@@ -25,6 +25,7 @@ mkdir my-mcp-project
 cd my-mcp-project
 uv init
 uv venv
+.\.venv\Scripts\activate
 uv sync
 ```
 
@@ -120,7 +121,7 @@ server_params = StdioServerParameters(
 )
 ```
 
-The argument "-v", f"{host_pdf_dir}:/tmp/playwright-mcp-output"  mounts the local host directory to the Docker container for sharing PDF output files. Remove it if you do not require to access the directory of the container.
+The argument "-v", f"{host_pdf_dir}:/tmp/playwright-mcp-output"  mounts the local host directory to the Docker container for sharing PDF output files. Remove it if you do not require access to the directory of the container.
 
 ---
 
