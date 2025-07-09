@@ -34,15 +34,15 @@ async def main():
 
     agent = create_react_agent(model=model, tools=tools)
 
-    # response = await agent.ainvoke(
-    #     {"messages": [{"role": "user", "content": "Can you navigate to www.google.com?"}]}, #for playwright
-    # )
+    response = await agent.ainvoke(
+        {"messages": [{"role": "user", "content": "Can you navigate to www.google.com? and tell me all the elements on the page"}]}, #for playwright
+    )
     # response = await agent.ainvoke(
     #     {"messages": [{"role": "user", "content": "What is my name?"}]}, #for local server
     # )
-    response = await agent.ainvoke(
-        {"messages": [{"role": "user", "content": "My age is 25. What is my birth year?"}]},
-    )
+    # response = await agent.ainvoke(
+    #     {"messages": [{"role": "user", "content": "My age is 25. What is my birth year?"}]},
+    # )
     print(response['messages'][-1].content)
 
 asyncio.run(main())

@@ -66,7 +66,7 @@ async def main():
 
         # Define task
         task = Task(
-            description="Navigate to www.google.com and fetch the title of the page. Get my name from the tool and put in the text box and then save the page as google.pdf'.",
+            description="Navigate to www.google.com and fetch the title of the page. Get my name and birthyear (my age is 20) from the tools and put them in the text box and then save the page as google.pdf'.",
             agent=agent,
             expected_output="A string containing the title of the Google homepage, e.g., 'Google'. and filepath to the pdf file, e.g., 'google.pdf'.",
         )
