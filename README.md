@@ -176,46 +176,36 @@ python .\crewAI_examples\crew_multiple_tasks.py
 from crewai_tools import MCPServerAdapter
 from mcp import StdioServerParameters
 
-docker_params = StdioServerParameters(
+server_params_list=[
+    StdioServerParameters(
     command="docker",
     args=[
         "run",
         "-i",
         "--rm",
-        "-v", f"{host_pdf_dir}:/tmp/playwright-mcp-output",
+        "-v", f"{host_pdf_dir}:/tmp/playwright-mcp-output",  # this is where it saves the files
         "mcp/playwright"
     ]
 )
-#both servers running on different port
-user = {
-    "url": "http://localhost:8000/mcp",
+,
+{
+    "url":"http://localhost:8000/mcp", #MCP for time
+    "transport":"streamable-http"
+},
+{
+    "url": "http://localhost:5000/mcp",  #MCP for user details
     "transport": "streamable-http"
 }
-
-time = {
-    "url": "http://localhost:5000/mcp",
-    "transport": "streamable-http"
-}
-
-from contextlib import ExitStack
-
-def load_all_mcp_tools(server_params_list):
-    all_tools = []
-    stack = ExitStack()
-    adapters = [stack.enter_context(MCPServerAdapter(params)) for params in server_params_list]
-    for adapter in adapters:
-        all_tools.extend(adapter)
-    return all_tools, stack
-
-server_params_list = [docker_params, user, time]   #add or remove servers from this list
-all_tools, stack = load_all_mcp_tools(server_params_list)
-with stack:
-    # Use all_tools in your Crew AI agent
+]
+with MCPServerAdapter(server_params_list) as all_tools:
+  # Use all_tools in your Crew AI agent
     ...
 ```
 
 This lets your Crew AI agent access and use tools from all connected MCP servers in a single workflow.
 
+### An example output
+![alt text](output.png)
 ---
 
 **Note:**  

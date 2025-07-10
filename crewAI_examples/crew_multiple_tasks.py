@@ -10,17 +10,6 @@ load_dotenv()
 
 from pathlib import Path
 
-from contextlib import ExitStack
-
-def load_all_mcp_tools(server_params_list):
-    all_tools = []
-    stack = ExitStack()
-    adapters = [stack.enter_context(MCPServerAdapter(params)) for params in server_params_list]
-    for adapter in adapters:
-        all_tools.extend(adapter)
-    return all_tools, stack
-
-
 current_dir = os.getcwd()  # Get current working directory
 current_dir = os.path.join(current_dir,"crewAI_examples")  
 host_pdf_dir = Path(current_dir, "saved_pdfs").as_posix()
@@ -35,8 +24,9 @@ os.environ["OPENAI_API_VERSION"] = os.environ.get("OPENAI_API_VERSION")
 os.environ["AZURE_OPENAI_API_KEY"] = (
     os.environ.get("AZURE_OPENAI_API_KEY")
 )
-# mcp on docker
-docker_params = StdioServerParameters(
+
+server_params_list=[
+    StdioServerParameters(
     command="docker",
     args=[
         "run",
@@ -46,23 +36,20 @@ docker_params = StdioServerParameters(
         "mcp/playwright"
     ]
 )
-#mcp runnning on local server
-
-user = {
-    "url":"http://localhost:8000/mcp",
+,
+{
+    "url":"http://localhost:8000/mcp", #MCP for time
     "transport":"streamable-http"
-}
-
-time= {
-    "url": "http://localhost:5000/mcp",
+},
+{
+    "url": "http://localhost:5000/mcp",  #MCP for user details
     "transport": "streamable-http"
 }
+]
+
 
 async def main():
-    server_params_list = [docker_params, user, time]
-    
-    all_tools, stack = load_all_mcp_tools(server_params_list)
-    with stack:
+    with MCPServerAdapter(server_params_list) as all_tools:
         print(f"Total tools loaded: {[tool.name for tool in all_tools]}")
 
         llm = LLM(model="azure/gpt-4o", temperature=0.7)
@@ -77,7 +64,7 @@ async def main():
         )
 
         task = Task(
-            description="Navigate to www.bing.com and fetch the title. Use the tools to get name and birth year and also the current time. Fill them on the text box and hit enter and save it as google.pdf.",
+            description="Navigate to www.bing.com and fetch the title. Use the tools to get name and birth year (my age is 24) and also the current time. Fill them on the text box and hit enter and save it as google.pdf.",
             agent=agent,
             expected_output="Page title, the text that was input the search box and saved PDF path",
         )
