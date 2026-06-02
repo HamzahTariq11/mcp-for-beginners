@@ -78,10 +78,6 @@ def register(mcp: FastMCP) -> None:
             return {"error": f"Failed to write itinerary file: {e}"}
 
         log_result("create_itinerary", f"saved {itinerary_id} (total ${total_cost})")
-        return {
-            "itinerary_id": itinerary_id,
-            "trip_name": trip_name,
-            "total_cost": total_cost,
-            "file_path": str(file_path),
-            "message": f"Itinerary '{trip_name}' saved as {itinerary_id}.",
-        }
+        # Return the FULL itinerary object (the frontend renders this directly
+        # from the tool output), plus where it was saved on disk.
+        return {**itinerary, "file_path": str(file_path)}
