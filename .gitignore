@@ -9,3 +9,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Generated itineraries (keep the folder via .gitkeep, ignore the output)
+data/itineraries/*.json
