@@ -20,6 +20,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
 from .utils import log_call, log_result
+from .mock_data import mock_attractions
 
 FSQ_URL = "https://places-api.foursquare.com/places/search"
 FSQ_VERSION = "2025-06-17"
@@ -30,6 +31,16 @@ _CATEGORY_IDS = {
     "indoor": "4d4b7104d754a06370d81259",   # Arts & Entertainment
     "all": None,
 }
+
+
+def _attractions_fallback(city: str, category: str, limit: int, reason: str) -> dict:
+    """Return mock attractions (same schema) when the live API can't deliver."""
+    data = mock_attractions(city, category, limit)
+    log_result(
+        "get_attractions",
+        f"{data['results_count']} {data['category']} attractions in {city} (MOCK: {reason})",
+    )
+    return data
 
 
 def register(mcp: FastMCP) -> None:
@@ -57,7 +68,7 @@ def register(mcp: FastMCP) -> None:
 
         api_key = os.getenv("FOURSQUARE_API_KEY")
         if not api_key:
-            return {"error": "FOURSQUARE_API_KEY is not set in the environment."}
+            return _attractions_fallback(city, cat, limit, "no API key")
 
         params: dict = {"near": city, "limit": limit}
         category_ids = _CATEGORY_IDS[cat]
@@ -74,9 +85,9 @@ def register(mcp: FastMCP) -> None:
                 resp = await client.get(FSQ_URL, params=params, headers=headers)
                 resp.raise_for_status()
         except httpx.HTTPStatusError as e:
-            return {"error": f"Foursquare API error {e.response.status_code}: {e.response.text[:300]}"}
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to reach Foursquare API: {e}"}
+            return _attractions_fallback(city, cat, limit, f"API error {e.response.status_code}")
+        except httpx.HTTPError:
+            return _attractions_fallback(city, cat, limit, "API unreachable")
 
         results = resp.json().get("results", [])
         attractions = []
@@ -94,14 +105,7 @@ def register(mcp: FastMCP) -> None:
             )
 
         if not attractions:
-            log_result("get_attractions", f"0 {cat} attractions in {city}")
-            return {
-                "city": city,
-                "category": cat,
-                "results_count": 0,
-                "attractions": [],
-                "message": "No attractions found for the given city/category.",
-            }
+            return _attractions_fallback(city, cat, limit, "no results returned")
         log_result("get_attractions", f"{len(attractions)} {cat} attractions in {city}")
         return {
             "city": city,

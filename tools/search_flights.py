@@ -20,6 +20,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
 from .utils import log_call, log_result, parse_iso_date
+from .mock_data import mock_flights
 
 DUFFEL_URL = "https://api.duffel.com/air/offer_requests"
 DUFFEL_VERSION = "v2"
@@ -54,6 +55,21 @@ def _to_usd(amount: float, currency: Optional[str]) -> Optional[float]:
     """Convert an amount to USD, or None if the currency is unknown."""
     rate = _USD_PER.get((currency or "USD").upper())
     return round(amount * rate, 2) if rate is not None else None
+
+
+def _flights_fallback(origin, destination, date, max_price, limit, reason: str) -> dict:
+    """Return mock flights (same schema, USD) when the live API can't deliver."""
+    data = mock_flights(origin, destination, date, max_price, limit)
+    if data["results_count"]:
+        cheapest = data["flights"][0]
+        log_result(
+            "search_flights",
+            f"{data['results_count']} flights, cheapest ${cheapest['price']} "
+            f"{cheapest['currency']} (MOCK: {reason})",
+        )
+    else:
+        log_result("search_flights", f"0 flights (MOCK: {reason})")
+    return data
 
 
 def register(mcp: FastMCP) -> None:
@@ -93,7 +109,7 @@ def register(mcp: FastMCP) -> None:
 
         api_key = os.getenv("DUFFEL_API_KEY")
         if not api_key:
-            return {"error": "DUFFEL_API_KEY is not set in the environment."}
+            return _flights_fallback(origin, destination, date, max_price, limit, "no API key")
 
         payload = {
             "data": {
@@ -125,9 +141,9 @@ def register(mcp: FastMCP) -> None:
                 )
                 resp.raise_for_status()
         except httpx.HTTPStatusError as e:
-            return {"error": f"Duffel API error {e.response.status_code}: {e.response.text[:300]}"}
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to reach Duffel API: {e}"}
+            return _flights_fallback(origin, destination, date, max_price, limit, f"API error {e.response.status_code}")
+        except httpx.HTTPError:
+            return _flights_fallback(origin, destination, date, max_price, limit, "API unreachable")
 
         offers = (resp.json().get("data") or {}).get("offers") or []
         flights = []
@@ -172,15 +188,8 @@ def register(mcp: FastMCP) -> None:
         flights = flights[:limit]
 
         if not flights:
-            log_result("search_flights", "0 flights found")
-            return {
-                "origin": origin.upper(),
-                "destination": destination.upper(),
-                "date": date,
-                "results_count": 0,
-                "flights": [],
-                "message": "No flights found for the given criteria.",
-            }
+            # API returned no usable offers (e.g. route not served) — fall back.
+            return _flights_fallback(origin, destination, date, max_price, limit, "no offers returned")
         log_result(
             "search_flights",
             f"{len(flights)} flights, cheapest ${flights[0]['price']} {flights[0]['currency']}",

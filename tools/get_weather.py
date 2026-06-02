@@ -15,8 +15,19 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
 from .utils import log_call, log_result, parse_iso_date
+from .mock_data import mock_weather
 
 FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast"
+
+
+def _weather_fallback(city: str, start_date: str, end_date: str, reason: str) -> dict:
+    """Return mock weather (same schema) when the live API can't deliver."""
+    data = mock_weather(city, start_date, end_date)
+    log_result(
+        "get_weather",
+        f"{len(data['forecast'])} days, recommendation={data['recommendation']} (MOCK: {reason})",
+    )
+    return data
 
 
 def register(mcp: FastMCP) -> None:
@@ -46,19 +57,19 @@ def register(mcp: FastMCP) -> None:
 
         api_key = os.getenv("OPENWEATHER_API_KEY")
         if not api_key:
-            return {"error": "OPENWEATHER_API_KEY is not set in the environment."}
+            return _weather_fallback(city, start_date, end_date, "no API key")
 
         params = {"q": city, "appid": api_key, "units": "metric", "cnt": 40}
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.get(FORECAST_URL, params=params)
                 if resp.status_code == 404:
-                    return {"error": f"City not found: {city!r}"}
+                    return _weather_fallback(city, start_date, end_date, "city not found")
                 resp.raise_for_status()
         except httpx.HTTPStatusError as e:
-            return {"error": f"OpenWeather API error {e.response.status_code}: {e.response.text[:200]}"}
-        except httpx.HTTPError as e:
-            return {"error": f"Failed to reach OpenWeather API: {e}"}
+            return _weather_fallback(city, start_date, end_date, f"API error {e.response.status_code}")
+        except httpx.HTTPError:
+            return _weather_fallback(city, start_date, end_date, "API unreachable")
 
         by_date: dict[str, list] = {}
         for item in resp.json().get("list", []):
@@ -92,16 +103,9 @@ def register(mcp: FastMCP) -> None:
             )
 
         if not forecast:
-            log_result("get_weather", "no forecast in range (free tier covers ~5 days)")
-            return {
-                "city": city,
-                "unit": "celsius",
-                "forecast": [],
-                "message": (
-                    "No forecast available for that date range. The free "
-                    "OpenWeather forecast only covers about 5 days ahead."
-                ),
-            }
+            # e.g. dates beyond the free 5-day window — fall back to mock so the
+            # demo still has a forecast to reason about.
+            return _weather_fallback(city, start_date, end_date, "no data in date range")
 
         avg_rain = sum(f["rain_chance"] for f in forecast) / len(forecast)
         recommendation = "outdoor" if avg_rain < 40 else "mixed" if avg_rain < 70 else "indoor"
